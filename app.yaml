@@ -1,0 +1,15 @@
+runtime: python-3.11
+
+env_variables:
+  PYTHONUNBUFFERED: "1"
+  
+automatic_scaling:
+  min_instances: 1
+  max_instances: 10
+  target_cpu_utilization: 0.6
+
+handlers:
+- url: /.*
+  script: auto
+  secure: always
+  redirect_http_response_code: 301

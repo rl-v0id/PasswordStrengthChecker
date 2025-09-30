@@ -1,0 +1,24 @@
+# Streamlit configuration
+[server]
+headless = false
+port = 8501
+address = "localhost"
+maxUploadSize = 1
+enableCORS = true
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#667eea"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"
+
+[logger]
+level = "info"
+
+# Global settings
+[global]
+developmentMode = false

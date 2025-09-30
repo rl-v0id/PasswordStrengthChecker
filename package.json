@@ -1,0 +1,30 @@
+{
+  "name": "password-strength-checker",
+  "version": "1.0.0",
+  "description": "A comprehensive password strength analysis tool built with Streamlit",
+  "main": "app.py",
+  "scripts": {
+    "start": "streamlit run app.py",
+    "dev": "streamlit run app.py --server.runOnSave=true",
+    "install": "pip install -r requirements.txt",
+    "setup": "python run.py"
+  },
+  "keywords": [
+    "password",
+    "security",
+    "strength",
+    "checker",
+    "streamlit",
+    "cybersecurity"
+  ],
+  "author": "Password Strength Checker Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/password-strength-checker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/password-strength-checker/issues"
+  },
+  "homepage": "https://github.com/yourusername/password-strength-checker#readme"
+}
