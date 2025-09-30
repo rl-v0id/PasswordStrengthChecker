@@ -50,6 +50,7 @@ jobs:
         push: false
         tags: password-strength-checker:test
         platforms: linux/amd64
+        outputs: type=docker
     
     - name: Test Docker image
       run: |
