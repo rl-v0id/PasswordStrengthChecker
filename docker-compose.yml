@@ -7,8 +7,8 @@ services:
       - "8501:8501"
     environment:
       - PYTHONUNBUFFERED=1
-    volumes:
-      - ./:/app
+    # volumes:
+    #   - ./:/app
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
