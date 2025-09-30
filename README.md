@@ -40,7 +40,7 @@ Whether you're creating a new password or testing an existing one, this tool off
 ### Steps
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/PasswordStrengthChecker.git
+   git clone https://github.com/rl-v0id/PasswordStrengthChecker.git
    cd PasswordStrengthChecker
    ```
 
