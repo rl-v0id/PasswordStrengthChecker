@@ -119,11 +119,8 @@ The database is stored in `list.txt` and is regularly updated to include new com
 
 ### Dependencies
 - `streamlit` - Web application framework
-- `cryptography` - Fernet encryption for secure password storage
 - `hashlib` - SHA-256 hashing for password verification
-- `secrets` - Cryptographically secure random number generation
 - `string` - Character set management for password generation
-- `os` - File system operations for local storage
 - `random` - Password shuffling and randomization
 
 ### Performance
@@ -144,7 +141,6 @@ The database is stored in `list.txt` and is regularly updated to include new com
    - Entropy calculation (in bits)
    - Character length and variety
    - Specific security recommendations
-4. **View History**: Access your encrypted password history to track improvements.
 
 ### Password Generation
 1. **Set Preferences**: Choose character types (uppercase, lowercase, numbers, symbols).
