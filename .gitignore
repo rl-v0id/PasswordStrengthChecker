@@ -90,3 +90,13 @@ Thumbs.db
 # Local configuration
 config.local.toml
 .env.local
+
+# User data (passwords, history, etc.) - keep folder structure but ignore contents
+user_data/*.hash
+user_data/*.key
+user_data/*.bin
+user_data/*.enc
+user_data/master_password.hash
+user_data/salt.bin
+user_data/encryption.key
+user_data/password_history.enc

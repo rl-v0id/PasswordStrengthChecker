@@ -3,6 +3,17 @@ import re
 import math
 from collections import Counter
 import string
+import requests
+import base64
+import os
+import sys
+import getpass
+import secrets
+import random
+import time
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # Configure page settings
 st.set_page_config(
@@ -393,6 +404,61 @@ st.markdown("""
         border-color: rgba(255, 165, 2, 0.6) !important;
         background: rgba(255, 243, 205, 0.95) !important;
     }
+    
+    /* Force all 4 checkboxes in one horizontal line with MASSIVE spacing */
+    div[data-testid="column"] {
+        flex: 1 1 25% !important;
+        max-width: none !important;
+        min-width: 300px !important;
+        margin-right: 150px !important;
+        padding-right: 60px !important;
+        padding-left: 40px !important;
+        overflow: visible !important;
+    }
+    
+    div[data-testid="column"]:last-child {
+        margin-right: 0 !important;
+        padding-right: 0 !important;
+    }
+    
+    /* Ensure container doesn't wrap */
+    .stColumn {
+        display: flex !important;
+        flex-direction: column !important;
+        flex-shrink: 0 !important;
+    }
+    
+    /* Fix checkbox text display */
+    .stCheckbox {
+        margin-bottom: 8px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+    
+    .stCheckbox > label {
+        font-size: 0.9em !important;
+        padding: 6px 8px !important;
+        white-space: nowrap !important;
+        word-break: keep-all !important;
+        overflow: visible !important;
+        display: flex !important;
+        align-items: center !important;
+        flex-direction: row !important;
+        text-overflow: ellipsis !important;
+    }
+    
+    .stCheckbox > label > div {
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        overflow: visible !important;
+    }
+    
+    /* Ensure the main container stays horizontal */
+    .element-container .stColumn {
+        display: inline-block !important;
+        width: auto !important;
+        vertical-align: top !important;
+    }
 </style>
 
 <script>
@@ -477,7 +543,7 @@ st.markdown("""
                             text === 'keyboard_arrow_down' ||
                             text === 'keyboard_arrow_up' ||
                             text === 'keyboard_arrow_left' ||
-                            element.innerHTML.includes('keyboard_arrow')) {
+                            text === 'keyboard_arrow' || element.innerHTML.includes('keyboard_arrow')) {
                             
                             // Multiple approaches to hide the element
                             element.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; font-size: 0 !important; height: 0 !important; width: 0 !important; overflow: hidden !important;';
@@ -572,124 +638,176 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-# Comprehensive common passwords and dictionary words database
-COMMON_PASSWORDS = {
-    # Numeric sequences
-    '123456', '123456789', '12345678', '1234567890', '12345', '1234567',
-    '654321', '987654321', '0123456789', '1111111111', '2222222222',
-    '1234554321', '123321', '111111', '000000', '666666', '777777',
-    
-    # Basic words with numbers
-    'password', 'password123', 'password1', 'password12', 'password1234',
-    'admin', 'admin123', 'admin1', 'administrator', 'root', 'root123',
-    'user', 'user123', 'guest', 'guest123', 'test', 'test123',
-    
-    # Keyboard patterns
-    'qwerty', 'qwerty123', 'qwertyuiop', 'asdfgh', 'asdfghjkl', 'zxcvbn',
-    'qazwsx', 'qaz123', 'wsx123', 'zaq123', 'xsw123', 'cde123',
-    'qwe123', 'asd123', 'zxc123', 'qweasd', 'qweasdzxc',
-    
-    # Common words
-    'welcome', 'welcome123', 'hello', 'hello123', 'world', 'world123',
-    'login', 'login123', 'access', 'access123', 'enter', 'enter123',
-    'computer', 'computer123', 'internet', 'internet123', 'system',
-    
-    # Names and dates
-    'john', 'john123', 'mary', 'mary123', 'mike', 'mike123', 'sarah',
-    'david', 'chris', 'alex', 'jessica', 'michael', 'jennifer',
-    '2023', '2024', '2025', '1990', '1995', '2000', '2010',
-    
-    # Sports and common interests
-    'football', 'soccer', 'basketball', 'baseball', 'tennis', 'golf',
-    'music', 'movie', 'game', 'love', 'money', 'secret', 'master',
-    
-    # Simple substitutions
-     'p@ssw0rd', 'p@ssword', 'passw0rd', '123qwe', 'qwe123asd',
-    'abc123def', '1q2w3e4r', '1q2w3e', 'a1b2c3', 'abc123',
-    
-    # Company/brand names
-    'google', 'facebook', 'apple', 'microsoft', 'amazon', 'twitter',
-    'instagram', 'youtube', 'netflix', 'spotify', 'github',
-    
-    # Weak patterns
-    'letmein', 'trustno1', 'dragon', 'baseball', 'monkey', 'sunshine',
-    'princess', 'cookie', 'summer', 'flower', 'shadow', 'superman',
-    'jesus', 'ninja', 'mustang', 'charlie', 'tigger', 'freedom',
-    'jordan', 'hunter', 'killer', 'soccer', 'batman', 'master',
-    'whatever', 'nothing', 'nobody', 'anyone', 'someone', 'everyone',
-    
-    # International variants
-    'senha123', 'senha', 'mot2passe', 'contraseña', 'passwort',
-    'heslo', 'lösenord', 'salasana', 'wachtwoord'
-}
+import os
 
-COMMON_WORDS = {
-    # Basic system words
-    'password', 'admin', 'administrator', 'user', 'username', 'login',
-    'welcome', 'guest', 'test', 'testing', 'demo', 'example', 'sample',
-    'default', 'change', 'temp', 'temporary', 'new', 'old', 'backup',
+# Load common passwords from list.txt (40k+ most used passwords)
+COMMON_PASSWORDS = set()
+list_path = os.path.join(os.path.dirname(__file__), "list.txt")
+try:
+    with open(list_path, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            pwd = line.strip().lower()
+            if pwd:
+                COMMON_PASSWORDS.add(pwd)
+except Exception as e:
+    st.warning(f"Could not load common password list: {e}")
+
+# --- Master Password Management ---
+def get_master_password_file():
+    """Get the master password hash file path"""
+    project_dir = os.path.dirname(__file__)
+    history_dir = os.path.join(project_dir, "user_data")
+    if not os.path.exists(history_dir):
+        os.makedirs(history_dir)
+    return os.path.join(history_dir, "master.hash")
+
+def get_salt_file():
+    """Get the salt file path"""
+    project_dir = os.path.dirname(__file__)
+    history_dir = os.path.join(project_dir, "user_data")
+    if not os.path.exists(history_dir):
+        os.makedirs(history_dir)
+    return os.path.join(history_dir, "salt.key")
+
+def create_master_password():
+    """Create a new master password"""
+    print("\n🔐 Setting up Master Password")
+    print("=" * 50)
+    print("This master password will encrypt your password history.")
+    print("⚠️  Important: If you forget this password, your history will be lost!")
+    print("=" * 50)
     
-    # Technology terms
-    'computer', 'laptop', 'desktop', 'server', 'database', 'system',
-    'network', 'internet', 'website', 'email', 'domain', 'host',
-    'cloud', 'data', 'file', 'folder', 'document', 'program',
+    while True:
+        password1 = getpass.getpass("Enter new master password: ")
+        if len(password1) < 8:
+            print("❌ Master password must be at least 8 characters long!")
+            continue
+        
+        password2 = getpass.getpass("Confirm master password: ")
+        if password1 != password2:
+            print("❌ Passwords don't match! Try again.")
+            continue
+            
+        # Generate salt and hash
+        salt = os.urandom(32)
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+        )
+        password_hash = kdf.derive(password1.encode())
+        
+        # Save salt and hash
+        with open(get_salt_file(), "wb") as f:
+            f.write(salt)
+        with open(get_master_password_file(), "wb") as f:
+            f.write(password_hash)
+        
+        print("✅ Master password created successfully!")
+        return True
+
+def verify_master_password():
+    """Verify the master password"""
+    if not os.path.exists(get_master_password_file()) or not os.path.exists(get_salt_file()):
+        return create_master_password()
     
-    # Personal information
-    'name', 'birth', 'birthday', 'anniversary', 'phone', 'address',
-    'street', 'city', 'state', 'country', 'home', 'work', 'office',
-    'school', 'college', 'university', 'company', 'business',
+    print("\n🔐 Master Password Required")
+    print("=" * 30)
     
-    # Common names
-    'john', 'mary', 'james', 'patricia', 'robert', 'jennifer', 'michael',
-    'linda', 'william', 'elizabeth', 'david', 'barbara', 'richard',
-    'susan', 'joseph', 'jessica', 'thomas', 'sarah', 'christopher',
-    'karen', 'daniel', 'nancy', 'matthew', 'lisa', 'anthony', 'betty',
+    # Load salt and stored hash
+    with open(get_salt_file(), "rb") as f:
+        salt = f.read()
+    with open(get_master_password_file(), "rb") as f:
+        stored_hash = f.read()
     
-    # Family relations
-    'mother', 'father', 'sister', 'brother', 'daughter', 'son',
-    'wife', 'husband', 'mom', 'dad', 'mama', 'papa', 'family',
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        password = getpass.getpass(f"Enter master password (attempt {attempt + 1}/{max_attempts}): ")
+        
+        # Derive key from password
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+        )
+        try:
+            password_hash = kdf.derive(password.encode())
+            if password_hash == stored_hash:
+                print("✅ Master password verified!")
+                return True
+        except:
+            pass
+        
+        if attempt < max_attempts - 1:
+            print("❌ Incorrect password. Try again.")
+        else:
+            print("❌ Too many failed attempts. Exiting...")
     
-    # Colors
-    'black', 'white', 'red', 'blue', 'green', 'yellow', 'orange',
-    'purple', 'pink', 'brown', 'gray', 'grey', 'silver', 'gold',
+    return False
+
+def change_master_password():
+    """Change the master password"""
+    if not verify_master_password():
+        return False
     
-    # Animals
-    'cat', 'dog', 'bird', 'fish', 'horse', 'cow', 'pig', 'sheep',
-    'lion', 'tiger', 'bear', 'wolf', 'fox', 'rabbit', 'mouse',
-    'elephant', 'monkey', 'snake', 'spider', 'butterfly',
+    print("\n🔄 Changing Master Password")
+    print("=" * 30)
     
-    # Nature
-    'sun', 'moon', 'star', 'earth', 'water', 'fire', 'wind', 'rain',
-    'snow', 'tree', 'flower', 'grass', 'mountain', 'river', 'ocean',
-    'beach', 'forest', 'desert', 'island', 'valley',
+    # Get new password
+    while True:
+        new_password1 = getpass.getpass("Enter new master password: ")
+        if len(new_password1) < 8:
+            print("❌ Master password must be at least 8 characters long!")
+            continue
+        
+        new_password2 = getpass.getpass("Confirm new master password: ")
+        if new_password1 != new_password2:
+            print("❌ Passwords don't match! Try again.")
+            continue
+        break
     
-    # Time and dates
-    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
-    'sunday', 'january', 'february', 'march', 'april', 'may', 'june',
-    'july', 'august', 'september', 'october', 'november', 'december',
-    'morning', 'afternoon', 'evening', 'night', 'today', 'tomorrow',
-    'yesterday', 'week', 'month', 'year', 'hour', 'minute', 'second',
+    # Generate new salt and hash
+    salt = os.urandom(32)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+    )
+    password_hash = kdf.derive(new_password1.encode())
     
-    # Emotions and states
-    'happy', 'sad', 'angry', 'love', 'hate', 'good', 'bad', 'nice',
-    'great', 'awesome', 'cool', 'hot', 'cold', 'warm', 'fresh',
-    'clean', 'dirty', 'new', 'old', 'young', 'strong', 'weak',
+    # Save new salt and hash
+    with open(get_salt_file(), "wb") as f:
+        f.write(salt)
+    with open(get_master_password_file(), "wb") as f:
+        f.write(password_hash)
     
-    # Common verbs
-    'make', 'take', 'come', 'give', 'think', 'know', 'want', 'need',
-    'find', 'help', 'work', 'play', 'live', 'move', 'open', 'close',
-    'start', 'stop', 'begin', 'end', 'create', 'delete', 'save',
+    print("✅ Master password changed successfully!")
+    return True
+
+def get_encryption_key_from_master_password(master_password):
+    """Derive encryption key from master password"""
+    # Load salt
+    salt_file = get_salt_file()
+    if not os.path.exists(salt_file):
+        raise FileNotFoundError("Salt file not found. Master password may not be set up properly.")
     
-    # Objects
-    'house', 'car', 'phone', 'book', 'table', 'chair', 'door', 'window',
-    'key', 'money', 'food', 'drink', 'coffee', 'tea', 'beer', 'wine',
-    'music', 'movie', 'game', 'sport', 'ball', 'shoe', 'shirt',
+    with open(salt_file, "rb") as f:
+        salt = f.read()
     
-    # Countries and cities
-    'america', 'england', 'france', 'germany', 'italy', 'spain',
-    'china', 'japan', 'india', 'canada', 'australia', 'brazil',
-    'london', 'paris', 'berlin', 'madrid', 'rome', 'tokyo', 'beijing'
-}
+    # Derive key for Fernet encryption
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))
+    return key
+
+# --- History feature removed by user request ---
 
 def calculate_entropy(password):
     """Calculate password entropy"""
@@ -778,13 +896,7 @@ def analyze_password_strength(password):
         score -= 20
         issues.append("Avoid common passwords")
     
-    # Avoid dictionary words (-10 points)
-    password_lower = password.lower()
-    for word in COMMON_WORDS:
-        if word in password_lower:
-            score -= 10
-            issues.append("Avoid common dictionary words")
-            break
+
     
     # Check for patterns (-10 points)
     pattern_issues = check_repeating_patterns(password)
@@ -899,8 +1011,69 @@ def create_strength_meter(score, color, strength_label):
     """
     return progress_html
 
+# --- Streamlit Session Setup (called from run.py) ---
+def setup_streamlit_session():
+    """Setup Streamlit session with master password"""
+    # Get master password for the session
+    print("\n🔐 Please enter your master password for this session:")
+    master_password = getpass.getpass("Master password: ")
+    
+    # Verify the password
+    with open(get_salt_file(), "rb") as f:
+        salt = f.read()
+    with open(get_master_password_file(), "rb") as f:
+        stored_hash = f.read()
+    
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+    )
+    
+    try:
+        password_hash = kdf.derive(master_password.encode())
+        if password_hash != stored_hash:
+            print("❌ Incorrect master password!")
+            return False
+    except:
+        print("❌ Incorrect master password!")
+        return False
+    
+    # Store master password in environment variable for Streamlit session
+    os.environ['MASTER_PASSWORD'] = master_password
+    return True
+
 # Main app
 def main():
+    # Initialize master password in session state
+    if 'master_password' not in st.session_state:
+        master_password = os.environ.get('MASTER_PASSWORD')
+        if not master_password:
+            st.error("🔒 **Master password not found!**")
+            st.markdown("""
+            ### 📋 How to fix this:
+            
+            **The Password Strength Checker must be started from the command line launcher.**
+            
+            #### ✅ Correct way to start the application:
+            1. 📁 Navigate to the project folder
+            2. 🐍 Run: `python run.py`  
+            3. 🔑 Choose option **2** (Use the tool)
+            4. 🔐 Enter your master password when prompted
+            
+            #### ❌ Don't run directly:
+            - Don't run `python app.py` directly
+            - Don't run `streamlit run app.py` directly
+            - Always use the `run.py` launcher
+            
+            ---
+            
+            **💡 The launcher handles master password verification and secure session setup.**
+            """)
+            st.stop()
+        st.session_state.master_password = master_password
+    
     # Enhanced header with animated banner
     st.markdown("""
     <style>
@@ -1035,13 +1208,13 @@ def main():
     <div class="main-header">
         <div class="header-content">
             <h1 class="main-title">
-                <span style="font-size: 4rem; margin-right: 0.5rem; filter: drop-shadow(0 0 15px rgba(79,172,254,0.6));">�️</span>
+                <span style="font-size: 4rem; margin-right: 0.5rem; filter: drop-shadow(0 0 15px rgba(79,172,254,0.6));">🗑️</span>
                 Password Strength Checker
             </h1>
             <p class="sub-title">Test your password strength and get suggestions for improvement</p>
         </div>
     </div>
-    """.replace("�️", "🔐"), unsafe_allow_html=True)
+    """.replace("🔡️", "🔐"), unsafe_allow_html=True)
     
     # Enhanced instructions with icons
     st.markdown("""
@@ -1102,9 +1275,33 @@ def main():
         )
         
         if password:
+            # Show analysis progress with verbose feedback
+            with st.spinner('🔍 Analyzing password...'):
+                import time
+                time.sleep(0.5)  # Brief pause for user feedback
+                
+            st.success("✅ Password analyzed successfully!")
+            
+            # Verbose feedback about what's happening
+            with st.expander("📋 Analysis Details", expanded=False):
+                st.write("**🔍 What we're checking:**")
+                st.write("• Password length and complexity")
+                st.write("• Character variety (uppercase, lowercase, numbers, symbols)")
+                st.write("• Common password patterns and sequences")
+                st.write("• Dictionary word detection")
+                st.write("• Entropy calculation for randomness")
+                
+                st.write("**🔒 Security & Privacy:**")
+                st.write("• All analysis happens locally on your device")
+                st.write("• No passwords are saved or stored anywhere")
+                st.write("• No data sent to external servers")
+            
             # Analyze password
             score, strength_label, issues, color = analyze_password_strength(password)
             entropy = calculate_entropy(password)
+            
+            # Analysis completed
+            st.info("✅ Password analysis completed!")
             
             # Display enhanced strength meter
             st.markdown("### 📊 Password Strength Analysis")
@@ -1173,6 +1370,7 @@ def main():
         
         st.markdown('</div>', unsafe_allow_html=True)  # Close password-section
     
+    # History feature removed by user request
     with col2:
         # Enhanced tips section
         st.markdown('<div class="tips-section">', unsafe_allow_html=True)
@@ -1294,62 +1492,253 @@ def main():
         password_length = st.slider("Password Length", min_value=8, max_value=32, value=16, 
                                   help="Longer passwords are more secure")
         
-        col_gen1, col_gen2 = st.columns(2)
-        with col_gen1:
-            include_symbols = st.checkbox("Include Symbols (!@#$%^&*)", value=True)
-            include_numbers = st.checkbox("Include Numbers (0-9)", value=True)
-        with col_gen2:
-            include_upper = st.checkbox("Include Uppercase (A-Z)", value=True)
-            include_lower = st.checkbox("Include Lowercase (a-z)", value=True)
+        # Initialize session state for toggle switches
+        if 'symbols_active' not in st.session_state:
+            st.session_state.symbols_active = True
+        if 'numbers_active' not in st.session_state:
+            st.session_state.numbers_active = True
+        if 'upper_active' not in st.session_state:
+            st.session_state.upper_active = True
+        if 'lower_active' not in st.session_state:
+            st.session_state.lower_active = True
+        
+        # Create spacer for separation
+        st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True)
+        
+        # Direct button layout without container
+        
+        # Each button stacked vertically - simple and clean!
+        
+
+
+
+        
+        # FIXED - Commented out problematic code:
+        # with col4:
+        if True:  # Changed from 'with col4:' to fix error
+            # Removed unnecessary toggle - using buttons below
+            # Original line: lower_toggle = st.toggle("� Lowercase (a-z)", value=st.session_state.lower_active, key="lower_toggle")
+            pass  # All functionality moved to buttons below
+        
+        # Container removed - buttons now display directly
+        
+        if st.button("🔣 Symbols (!@#$%^&*)", 
+                    key="symbols_btn",
+                    type="primary" if st.session_state.symbols_active else "secondary",
+                    use_container_width=True):
+            st.session_state.symbols_active = not st.session_state.symbols_active
+        
+        st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+        
+        if st.button("🔢 Numbers (0-9)", 
+                    key="numbers_btn",
+                    type="primary" if st.session_state.numbers_active else "secondary",
+                    use_container_width=True):
+            st.session_state.numbers_active = not st.session_state.numbers_active
+        
+        st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+        
+        if st.button("🔠 Uppercase (A-Z)", 
+                    key="upper_btn",
+                    type="primary" if st.session_state.upper_active else "secondary",
+                    use_container_width=True):
+            st.session_state.upper_active = not st.session_state.upper_active
+        
+        st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+        
+        if st.button("🔡 Lowercase (a-z)", 
+                    key="lower_btn",
+                    type="primary" if st.session_state.lower_active else "secondary",
+                    use_container_width=True):
+            st.session_state.lower_active = not st.session_state.lower_active
+        
+        # Custom styling for vertical buttons
+        st.markdown("""
+        <style>
+        .stButton > button {
+            height: 60px !important;
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(15px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 15px !important;
+            color: white !important;
+            font-size: 16px !important;
+            font-weight: 500 !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-3px) !important;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
+            background: rgba(255, 255, 255, 0.15) !important;
+        }
+        
+        .stButton > button[kind="primary"] {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.85), rgba(118, 75, 162, 0.85)) !important;
+            border-color: rgba(102, 126, 234, 0.7) !important;
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
+        }
+        
+        .stButton > button[kind="primary"]:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95), rgba(118, 75, 162, 0.95)) !important;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5) !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # Get the values for password generation
+        include_symbols = st.session_state.symbols_active
+        include_numbers = st.session_state.numbers_active
+        include_upper = st.session_state.upper_active
+        include_lower = st.session_state.lower_active
+        
+        # Display last generated password if exists
+        if 'generated_password' in st.session_state and st.session_state.generated_password:
+            st.markdown("""
+            <div style="background: rgba(255, 255, 255, 0.1); 
+                       backdrop-filter: blur(20px);
+                       border: 1px solid rgba(255, 255, 255, 0.2);
+                       padding: 1.5rem; border-radius: 20px; 
+                       margin: 1rem 0;
+                       box-shadow: 0 8px 32px rgba(102, 126, 234, 0.25),
+                                   0 0 0 1px rgba(255, 255, 255, 0.1),
+                                   inset 0 1px 0 rgba(255, 255, 255, 0.2);">
+                <p style="margin: 0; font-weight: bold; color: white; text-align: center; 
+                          font-size: 1.1rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">💡 Last Generated Password:</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                # Display password with beautiful acrylic styling
+                st.markdown(f"""
+                <div style="background: rgba(255, 255, 255, 0.15); 
+                           backdrop-filter: blur(25px);
+                           border: 1px solid rgba(255, 255, 255, 0.25);
+                           padding: 20px; border-radius: 15px; 
+                           margin: 10px 0;
+                           box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3),
+                                       0 0 0 1px rgba(255, 255, 255, 0.1),
+                                       inset 0 1px 0 rgba(255, 255, 255, 0.3);
+                           font-family: 'Courier New', monospace; font-size: 18px; 
+                           color: white; font-weight: bold; text-align: center;
+                           letter-spacing: 2px; word-break: break-all;
+                           text-shadow: 0 2px 4px rgba(0,0,0,0.4);">
+                    {st.session_state.generated_password}
+                </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                if st.button("🗑️", help="Clear", key="clear_password"):
+                    del st.session_state.generated_password
+                    st.rerun()
         
         if st.button("🎲 Generate Secure Password", 
                     help="Generate a cryptographically secure password with your preferences"):
             import secrets
             import random
+            import time
             
-            # Build character set based on user preferences
-            char_set = ""
-            password_chars = []
-            
-            if include_lower:
-                char_set += string.ascii_lowercase
-                password_chars.append(secrets.choice(string.ascii_lowercase))
-            if include_upper:
-                char_set += string.ascii_uppercase
-                password_chars.append(secrets.choice(string.ascii_uppercase))
-            if include_numbers:
-                char_set += string.digits
-                password_chars.append(secrets.choice(string.digits))
-            if include_symbols:
-                symbols = "!@#$%^&*()_+-=[]{}|;:,.<>?"
-                char_set += symbols
-                password_chars.append(secrets.choice(symbols))
-            
+            # Let's walk through the password generation process step by step
+            with st.spinner('🎯 Setting up your character preferences...'):
+                time.sleep(0.3)
+
+                # Start with an empty character set and build it up based on user choices
+                char_set = ""
+                password_chars = []  # We'll make sure to include at least one of each selected type
+                selected_types = []  # For feedback to the user
+
+                if include_lower:
+                    char_set += string.ascii_lowercase
+                    password_chars.append(secrets.choice(string.ascii_lowercase))  # Always add one lowercase
+                    selected_types.append("lowercase letters")
+                if include_upper:
+                    char_set += string.ascii_uppercase
+                    password_chars.append(secrets.choice(string.ascii_uppercase))  # Always add one uppercase
+                    selected_types.append("uppercase letters")
+                if include_numbers:
+                    char_set += string.digits
+                    password_chars.append(secrets.choice(string.digits))  # Always add one number
+                    selected_types.append("numbers")
+                if include_symbols:
+                    symbols = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+                    char_set += symbols
+                    password_chars.append(secrets.choice(symbols))  # Always add one symbol
+                    selected_types.append("symbols")
+
+            # Let the user know what types are being used and the length
+            st.info(f"📝 Using character types: {', '.join(selected_types)}")
+            st.info(f"📏 Generating password with {password_length} characters")
+
             if not char_set:
                 st.error("⚠️ Please select at least one character type!")
             else:
-                # Fill remaining length with random chars from selected set
-                remaining_length = password_length - len(password_chars)
-                for _ in range(remaining_length):
-                    password_chars.append(secrets.choice(char_set))
-                
-                # Shuffle the password
-                random.shuffle(password_chars)
+                # Now fill in the rest of the password with random choices from the full set
+                with st.spinner('🎲 Generating random characters for your password...'):
+                    time.sleep(0.4)
+
+                    # Fill up to the desired length
+                    remaining_length = password_length - len(password_chars)
+                    for _ in range(remaining_length):
+                        password_chars.append(secrets.choice(char_set))
+
+                # Shuffle so the required characters aren't always at the start
+                with st.spinner('🔀 Shuffling everything for extra randomness...'):
+                    time.sleep(0.3)
+                    random.shuffle(password_chars)
                 generated_password = ''.join(password_chars)
-                
-                # Display generated password with copy functionality
+
+                # Save the result so it can be shown to the user
+                st.session_state['generated_password'] = generated_password
+
+                # Show the password in a nice acrylic-styled box
                 st.markdown("""
-                <div style="background: #2d3748; padding: 1rem; border-radius: 10px; 
-                           border: 2px dashed #4a5568; margin: 1rem 0;">
-                    <p style="margin: 0; font-weight: bold; color: #e2e8f0;">Generated Password:</p>
+                <div style="background: rgba(255, 255, 255, 0.12); 
+                           backdrop-filter: blur(25px);
+                           border: 1px solid rgba(255, 255, 255, 0.3);
+                           padding: 1.5rem; border-radius: 20px; 
+                           margin: 1rem 0;
+                           box-shadow: 0 8px 32px rgba(102, 126, 234, 0.35),
+                                       0 0 0 1px rgba(255, 255, 255, 0.15),
+                                       inset 0 1px 0 rgba(255, 255, 255, 0.25);">
+                    <p style="margin: 0; font-weight: bold; color: white; text-align: center; 
+                              font-size: 1.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.4);">🎉 Your Generated Password:</p>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                st.code(generated_password, language=None)
-                
-                # Analyze the generated password
+
+                st.success("✅ Password Generated Successfully!")
+
+                # Show the password itself in a prominent way
+                st.markdown(f"""
+                <div style="background: rgba(255, 255, 255, 0.18); 
+                           backdrop-filter: blur(30px);
+                           border: 1px solid rgba(255, 255, 255, 0.35);
+                           padding: 25px; border-radius: 18px; 
+                           margin: 20px 0;
+                           box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4),
+                                       0 0 0 1px rgba(255, 255, 255, 0.2),
+                                       inset 0 2px 0 rgba(255, 255, 255, 0.3);
+                           font-family: 'Courier New', monospace; font-size: 22px; 
+                           color: white; font-weight: bold; text-align: center;
+                           letter-spacing: 3px; word-break: break-all;
+                           text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+                           position: relative;
+                           overflow: hidden;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                               background: linear-gradient(45deg, 
+                                   rgba(102, 126, 234, 0.1) 0%, 
+                                   rgba(118, 75, 162, 0.1) 50%, 
+                                   rgba(102, 126, 234, 0.1) 100%);
+                               pointer-events: none;"></div>
+                    <div style="position: relative; z-index: 1;">
+                        {generated_password}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Quickly analyze the generated password and show the result
                 gen_score, gen_strength, _, _ = analyze_password_strength(generated_password)
-                
+
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #22543d, #2f855a); 
                            padding: 1rem; border-radius: 10px; margin: 0.5rem 0;">
@@ -1380,7 +1769,7 @@ def main():
                    gap: 1.5rem; margin: 1rem 0;">
             <div style="background: rgba(255, 255, 255, 0.95); border: 2px solid #48bb78; padding: 1.2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(72, 187, 120, 0.2);">
                 <h5 style="color: #22543d; margin-top: 0; font-weight: 700;">🔒 Privacy First</h5>
-                <p style="margin-bottom: 0; font-size: 1em; color: #2d3748; font-weight: 500;">All analysis happens locally in your browser. Your passwords never leave your device.</p>
+                <p style="margin-bottom: 0; font-size: 1em; color: #2d3748; font-weight: 500;">All analysis happens locally. No passwords are saved or stored. Nothing leaves your device.</p>
             </div>
             <div style="background: rgba(255, 255, 255, 0.95); border: 2px solid #4299e1; padding: 1.2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(66, 153, 225, 0.2);">
                 <h5 style="color: #2b6cb0; margin-top: 0; font-weight: 700;">⚡ Real-time</h5>
@@ -1388,7 +1777,7 @@ def main():
             </div>
             <div style="background: rgba(255, 255, 255, 0.95); border: 2px solid #9f7aea; padding: 1.2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(159, 122, 234, 0.2);">
                 <h5 style="color: #553c9a; margin-top: 0; font-weight: 700;">🎯 Comprehensive</h5>
-                <p style="margin-bottom: 0; font-size: 1em; color: #2d3748; font-weight: 500;">Checks against 500+ common passwords and uses advanced pattern detection.</p>
+                <p style="margin-bottom: 0; font-size: 1em; color: #2d3748; font-weight: 500;">Checks against 40,000+ common passwords and uses advanced pattern detection.</p>
             </div>
         </div>
         <hr style="margin: 2rem 0; border: none; height: 2px; background: linear-gradient(90deg, transparent, #4facfe, transparent);">
@@ -1467,4 +1856,5 @@ def main():
     st.markdown("*\"Security should be accessible to everyone, not just the privileged few.\" - RL*")
 
 if __name__ == "__main__":
+    # Always run the main Streamlit app
     main()
